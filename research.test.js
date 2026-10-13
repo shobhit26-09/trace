@@ -1,0 +1,11 @@
+import test from 'node:test';import assert from 'node:assert/strict';import {redact,analyze,checkSite,postsFor,scanSites,linkTrail} from './research.js';
+const mock=(text,status=200)=>async()=>new Response(text,{status});
+test('120 fixed HTTPS templates without private/NSFW checks',()=>{assert.equal(scanSites.length,120);assert.ok(scanSites.every(s=>s.url.startsWith('https://')&&s.url.includes('{}')));});
+test('contact filtering',()=>{assert.equal(redact('Mail a@example.com or +91 98765 43210'),'Mail [contact removed] or [contact removed]');});
+test('observed UTC activity and repeated terms only',()=>{const a=analyze([{text:'software software hello',date:'2026-10-13T09:00:00Z'},{text:'software world',date:'2026-10-12T09:00:00Z'}]);assert.equal(a.hours[9],2);assert.deepEqual(a.topics,[{term:'software',posts:2}]);assert.equal(a.sample,2);});
+test('soft-404 response never candidate',async()=>assert.equal((await checkSite({name:'Demo',url:'https://example.com/{}',type:'status_code'},'foo',mock('generic welcome'))).state,'inconclusive'));
+test('negative control needed',async()=>{const f=async url=>new Response('profile',{status:url.includes('trace-no-user')?404:200});assert.equal((await checkSite({name:'Demo',url:'https://example.com/{}',type:'status_code'},'foo',f)).state,'candidate');});
+test('access restriction not absent',async()=>assert.equal((await checkSite({name:'Demo',url:'https://example.com/{}',type:'status_code'},'foo',mock('denied',403))).state,'blocked'));
+test('unsupported X post feed does not fabricate posts',async()=>{const d=await postsFor('x','foo');assert.equal(d.state,'limited');assert.equal(d.posts.length,0);});
+test('links do not permit arbitrary URL fetch',async()=>{let n=0;const d=await linkTrail(['http://127.0.0.1/secret','https://unknown.example/path'],()=>{n++;});assert.equal(n,0);assert.ok(d.every(x=>x.state==='link_only'));});
+test('Bluesky excludes reposts and other authors',async()=>{const feed=[{post:{author:{handle:'foo.bsky.social',did:'did:plc:foo'},uri:'at://foo/a/123',record:{text:'original',createdAt:'2026-10-13T09:00:00Z'}}},{reason:{},post:{author:{handle:'foo.bsky.social'}}},{post:{author:{handle:'other.bsky.social'}}}];const d=await postsFor('bluesky','foo',mock(JSON.stringify({feed})));assert.equal(d.posts.length,1);});
