@@ -36,15 +36,16 @@ export async function archivesFor(url,fetcher=fetch){
 }
 export async function mentionsFor(handle,fetcher=fetch){
  const source='https://hn.algolia.com/api/v1/search?query='+encodeURIComponent(handle)+'&hitsPerPage=30';
- try{const d=await json(source,fetcher),needle=handle.toLowerCase();const hits=(d.hits||[]).filter(h=>[h.title,h.story_text,h.comment_text,h.url].some(v=>String(v||'').toLowerCase().includes(needle))).slice(0,10).map(h=>({title:redact(h.title||h.story_title||'Public discussion mention'),excerpt:redact((h.comment_text||h.story_text||'').replace(/<[^>]*>/g,'')).slice(0,400),url:'https://news.ycombinator.com/item?id='+encodeURIComponent(h.objectID),date:h.created_at,kind:'Exact handle text mention, not verified attribution'}));
+ try{const d=await json(source,fetcher),needle=handle.toLowerCase(),exact=new RegExp('(^|[^a-z0-9_.-])'+needle.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+'($|[^a-z0-9_.-])','i');const hits=(d.hits||[]).filter(h=>[h.title,h.story_text,h.comment_text,h.url].some(v=>exact.test(String(v||'')))).slice(0,10).map(h=>({title:redact(h.title||h.story_title||'Public discussion mention'),excerpt:redact((h.comment_text||h.story_text||'').replace(/<[^>]*>/g,'')).slice(0,400),url:'https://news.ycombinator.com/item?id='+encodeURIComponent(h.objectID),date:h.created_at,kind:'Exact handle text mention, not verified attribution'}));
  return {state:'readable',source,checkedAt:stamp(),hits,coverage:'Hacker News public search only. Not a whole-web index. Matches may refer to other people.'};
  }catch{return {state:'unavailable',source,checkedAt:stamp(),hits:[],coverage:'Hacker News public search could not be read.'};}
 }
+function cleanProfile(p){return {...p,name:redact(p.name||''),bio:redact(p.bio||''),location:redact(p.location||'')};}
 export async function linkTrail(links,fetcher=fetch){
  const hosts={'github.com':'github','dev.to':'devto','x.com':'x','twitter.com':'x','www.instagram.com':'instagram','instagram.com':'instagram','t.me':'telegram','gitlab.com':'gitlab'};
- return Promise.all([...new Set(links)].slice(0,4).map(async url=>{try{const u=new URL(url),p=hosts[u.hostname];let h=u.pathname.split('/').filter(Boolean)[0];if(u.hostname==='bsky.app'&&u.pathname.startsWith('/profile/')){h=u.pathname.split('/')[2];return {url,evidence:'Explicit profile link',profile:await lookup('bluesky',h,fetcher)};}
+ return Promise.all([...new Set(links)].slice(0,4).map(async url=>{try{const u=new URL(url),p=hosts[u.hostname];let h=u.pathname.split('/').filter(Boolean)[0];if(u.hostname==='bsky.app'&&u.pathname.startsWith('/profile/')){h=u.pathname.split('/')[2];return {url,evidence:'Explicit profile link',profile:cleanProfile(await lookup('bluesky',h,fetcher))};}
  if(!p||!h||u.search||u.pathname.split('/').filter(Boolean).length!==1)return {url,evidence:'Explicit profile link',state:'link_only',reason:'External website retained as a source link. No arbitrary website crawling.'};
- return {url,evidence:'Explicit profile link, not independent ownership proof',profile:await lookup(p,h,fetcher)};
+ return {url,evidence:'Explicit profile link, not independent ownership proof',profile:cleanProfile(await lookup(p,h,fetcher))};
  }catch{return {url,state:'unavailable'};}}));
 }
 
