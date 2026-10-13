@@ -41,7 +41,7 @@ export async function lookup(platform,handle,fetcher=fetch) {
 }
 export function manualLinks(handle) {return [];}
 const socialRoots={x:'https://x.com/',instagram:'https://www.instagram.com/',facebook:'https://www.facebook.com/',reddit:'https://www.reddit.com/user/',youtube:'https://www.youtube.com/@',tiktok:'https://www.tiktok.com/@',telegram:'https://t.me/',threads:'https://www.threads.net/@'};
-function decode(text=''){return text.replace(/&amp;/g,'&').replace(/&quot;/g,'"').replace(/&#39;/g,"'").replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/<[^>]*>/g,'').trim();}
+function decode(text=''){return text.replace(/&#(x[0-9a-f]+|[0-9]+);/gi,(_,code)=>{const n=code[0].toLowerCase()==='x'?parseInt(code.slice(1),16):parseInt(code,10);return n>=0&&n<=0x10ffff?String.fromCodePoint(n):'';}).replace(/&amp;/g,'&').replace(/&quot;/g,'"').replace(/&#39;/g,"'").replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/<[^>]*>/g,'').trim();}
 function metadata(html,key){for(const tag of html.match(/<meta\b[^>]*>/gi)||[]){const attrs={};for(const m of tag.matchAll(/([\w:-]+)\s*=\s*(["'])(.*?)\2/gis))attrs[m[1].toLowerCase()]=m[3];if(attrs.property===key||attrs.name===key)return decode(attrs.content);}return '';}
 function publicLinks(text){return [...new Set((text.match(/https?:\/\/[^\s<>"']+/g)||[]).map(safeLink).filter(Boolean))].slice(0,8);}
 export async function socialLookup(platform,handle,fetcher=fetch){
