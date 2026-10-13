@@ -10,3 +10,5 @@ test('social login pages never claim identity',async()=>{const r=await lookup('i
 test('social access denial remains blocked, not absent',async()=>{assert.equal((await lookup('facebook','someone',async()=>new Response('',{status:403}))).state,'blocked');});
 
 test('HTML entities are decoded without rendering markup',async()=>{const r=await lookup('instagram','test',async()=>new Response('<meta property="og:title" content="Test (&#064;test) &#x2022; Instagram"><meta property="og:url" content="https://www.instagram.com/test"><meta property="og:description" content="Hello &amp; world">'));assert.equal(r.name,'Test (@test) • Instagram');assert.equal(r.bio,'Hello & world');assert.equal(r.state,'limited');});
+
+test('DEV biography comes from summary and preserves declared accounts',async()=>{const r=await lookup('devto','ben',async()=>new Response(JSON.stringify({username:'ben',name:'Ben',summary:'Canadian developer',github_username:'benhalpern'}),{status:200}));assert.equal(r.bio,'Canadian developer');assert.ok(r.links.includes('https://github.com/benhalpern'));});
