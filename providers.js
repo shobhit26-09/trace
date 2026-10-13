@@ -32,9 +32,9 @@ export async function lookup(platform,handle,fetcher=fetch) {
   if(response.state!=='found') return {...result,...response};
   let d=response.data;
   if(platform==='gitlab') {d=d.find(user=>user.username?.toLowerCase()===handle.toLowerCase());if(!d)return {...result,state:'not_found'};}
-  const common={...result,state:'found',name:d.name||d.displayName||d.login||d.username||actor,bio:d.bio||d.description||'',avatar:safeLink(d.avatar_url||d.avatar||d.profile_image),url:safeLink(d.html_url||d.web_url)||profileUrl};
+  const common={...result,state:'found',name:d.name||d.displayName||d.login||d.username||actor,bio:d.bio||d.description||d.summary||'',avatar:safeLink(d.avatar_url||d.avatar||d.profile_image),url:safeLink(d.html_url||d.web_url)||profileUrl};
   if(platform==='github') return {...common,stats:{Followers:d.followers,Following:d.following,'Public repos':d.public_repos},joined:d.created_at,links:[safeLink(d.blog),d.twitter_username?`https://x.com/${encodeURIComponent(d.twitter_username)}`:null].filter(Boolean),location:d.location||null};
-  if(platform==='bluesky') return {...common,stats:{Followers:d.followersCount,Following:d.followsCount,Posts:d.postsCount},joined:d.createdAt,links:[],location:null};
+  if(platform==='bluesky') return {...common,stats:{Followers:d.followersCount,Following:d.followsCount,Posts:d.postsCount},joined:d.createdAt,links:publicLinks(d.description||''),location:null};
   if(platform==='devto') return {...common,stats:{},joined:d.joined_at,links:[safeLink(d.website_url),d.github_username?`https://github.com/${encodeURIComponent(d.github_username)}`:null,d.twitter_username?`https://x.com/${encodeURIComponent(d.twitter_username)}`:null].filter(Boolean),location:d.location||null};
   return {...common,stats:{},joined:d.created_at,links:[safeLink(d.website_url)].filter(Boolean),location:null};
  } catch(e) {return {...result,state:'unavailable',reason:e.name==='TimeoutError'?'Source timed out after 8 seconds.':'Source could not be reached or returned an unexpected response.'};}
