@@ -8,3 +8,5 @@ test('manual links never imply existence',()=>{assert.equal(manualLinks('cat').l
 
 test('social login pages never claim identity',async()=>{const r=await lookup('instagram','someone',async()=>new Response('<meta property="og:title" content="Instagram"><meta property="og:url" content="https://www.instagram.com/someone">'));assert.equal(r.state,'limited');assert.equal(r.profileReadable,undefined);});
 test('social access denial remains blocked, not absent',async()=>{assert.equal((await lookup('facebook','someone',async()=>new Response('',{status:403}))).state,'blocked');});
+
+test('HTML entities are decoded without rendering markup',async()=>{const r=await lookup('instagram','test',async()=>new Response('<meta property="og:title" content="Test (&#064;test) &#x2022; Instagram"><meta property="og:url" content="https://www.instagram.com/test"><meta property="og:description" content="Hello &amp; world">'));assert.equal(r.name,'Test (@test) • Instagram');assert.equal(r.bio,'Hello & world');assert.equal(r.state,'limited');});
